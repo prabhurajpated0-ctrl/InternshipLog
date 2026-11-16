@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: internshiplog-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false          # you will paste this in Render dashboard
+      - key: CLIENT_URL
+        sync: false          # e.g. https://internshiplog.vercel.app
