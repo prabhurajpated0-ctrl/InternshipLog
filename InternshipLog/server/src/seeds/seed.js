@@ -16,7 +16,7 @@ const getRelativeDate = (daysOffset) => {
 };
 
 const sampleApplications = [
-  // 1. Wishlist - preparing resume, deadline in 5 days
+  // 1. Wishlist
   {
     company: 'Stripe',
     role: 'Software Engineering Intern - Infrastructure',
@@ -29,7 +29,7 @@ const sampleApplications = [
     link: 'https://stripe.com/jobs/infrastructure-intern',
     notes: 'Drafted tailored resume highlighting distributed systems projects.',
   },
-  // 2. Wishlist - deadline in 12 days
+  // 2. Wishlist
   {
     company: 'Figma',
     role: 'Product Design & Engineering Intern',
@@ -42,7 +42,7 @@ const sampleApplications = [
     link: 'https://careers.figma.com/design-intern',
     notes: 'Need to update online portfolio with recent React canvas demo.',
   },
-  // 3. Applied - recently applied, follow-up due in 3 days
+  // 3. Applied
   {
     company: 'Google',
     role: 'Software Engineering Intern, Summer 2027',
@@ -55,7 +55,7 @@ const sampleApplications = [
     link: 'https://careers.google.com/jobs/results/swe-intern',
     notes: 'Submitted application with referral from university fair.',
   },
-  // 4. Applied - follow-up is OVERDUE (5 days ago)
+  // 4. Applied (Overdue follow-up)
   {
     company: 'Microsoft',
     role: 'Explore Intern (Freshmen & Sophomores)',
@@ -68,7 +68,7 @@ const sampleApplications = [
     link: 'https://careers.microsoft.com/explore-intern',
     notes: 'Applied through Handshake, recruiter reached out at career day.',
   },
-  // 5. OA/Screening - assessment due in 2 days (upcoming deadline & follow-up)
+  // 5. OA/Screening (Upcoming deadline & follow-up)
   {
     company: 'Amazon',
     role: 'Software Development Engineer Intern',
@@ -79,9 +79,9 @@ const sampleApplications = [
     followUpNote: 'Complete Hackerrank Part 1 & Part 2',
     location: 'Seattle, WA',
     link: 'https://amazon.jobs/sde-intern',
-    notes: 'Received 90-minute OA link on Hackerrank. Need to review graphs and sliding window.',
+    notes: 'Received 90-minute OA link on Hackerrank. Review graphs & sliding window.',
   },
-  // 6. OA/Screening - follow-up is OVERDUE (2 days ago)
+  // 6. OA/Screening (Overdue follow-up)
   {
     company: 'Datadog',
     role: 'Backend Engineering Intern',
@@ -94,7 +94,7 @@ const sampleApplications = [
     link: 'https://careers.datadoghq.com/backend-intern',
     notes: 'Completed Codesignal test with 810/850 score. Waiting for recruiter review.',
   },
-  // 7. Interview - Technical round scheduled in 4 days
+  // 7. Interview (Technical round)
   {
     company: 'Meta',
     role: 'Software Engineer Intern',
@@ -105,9 +105,9 @@ const sampleApplications = [
     followUpNote: 'Technical Round 1 (Data Structures & Algorithms)',
     location: 'Menlo Park, CA / Hybrid',
     link: 'https://metacareers.com/swe-intern',
-    notes: 'Passed initial recruiter phone screen. Interviewer confirmed 45 min CoderPad session.',
+    notes: 'Passed recruiter screen. Interviewer confirmed 45 min CoderPad session.',
   },
-  // 8. Interview - System design / Behavioral interview tomorrow
+  // 8. Interview (System design / Behavioral)
   {
     company: 'Uber',
     role: 'Frontend Engineering Intern',
@@ -118,9 +118,9 @@ const sampleApplications = [
     followUpNote: 'Prepare STAR stories and questions for hiring manager',
     location: 'San Francisco, CA',
     link: 'https://uber.com/careers/frontend-intern',
-    notes: 'Passed phone screen. Final round with 2 engineers on React performance and state architecture.',
+    notes: 'Passed phone screen. Final round with 2 engineers on React performance.',
   },
-  // 9. Offer - Accepted or pending decision
+  // 9. Offer
   {
     company: 'Cloudflare',
     role: 'Systems Engineering Intern',
@@ -131,9 +131,9 @@ const sampleApplications = [
     followUpNote: '',
     location: 'Austin, TX / Remote',
     link: 'https://cloudflare.com/careers/systems-intern',
-    notes: 'Received written offer: $55/hr + relocation stipend. Deadline to decide is next Monday.',
+    notes: 'Received written offer: $55/hr + relocation stipend. Deadline next Monday.',
   },
-  // 10. Offer - Competing offer
+  // 10. Offer
   {
     company: 'Spotify',
     role: 'Web Development Intern',
@@ -144,9 +144,9 @@ const sampleApplications = [
     followUpNote: '',
     location: 'New York, NY / Hybrid',
     link: 'https://spotifyjobs.com/intern-web',
-    notes: 'Offer letter received! Great team working on Web Player playlist personalization.',
+    notes: 'Offer letter received! Great team working on Web Player personalization.',
   },
-  // 11. Rejected - After OA
+  // 11. Rejected
   {
     company: 'Netflix',
     role: 'Software Engineering Intern',
@@ -157,9 +157,9 @@ const sampleApplications = [
     followUpNote: '',
     location: 'Los Gatos, CA',
     link: 'https://jobs.netflix.com/intern',
-    notes: 'Automated rejection email received. High competition for limited summer cohort.',
+    notes: 'Automated rejection email received. High competition for summer cohort.',
   },
-  // 12. Rejected - After final round
+  // 12. Rejected
   {
     company: 'Airbnb',
     role: 'Full Stack Engineering Intern',
@@ -170,17 +170,15 @@ const sampleApplications = [
     followUpNote: '',
     location: 'San Francisco, CA',
     link: 'https://careers.airbnb.com/university',
-    notes: 'Reached final round. Good feedback on system design but went with another candidate.',
+    notes: 'Reached final round. Good feedback on system design but selected another candidate.',
   },
 ];
 
 const seedDB = async (customUri) => {
-  const uri = customUri || process.env.MONGO_URI;
-
   try {
-    console.log('[Seed] Connecting to MongoDB...');
-    const conn = await mongoose.connect(uri);
-    console.log(`[Seed] Connected to ${conn.connection.host}`);
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB(customUri);
+    }
 
     // Clear existing applications
     const deleted = await Application.deleteMany({});
