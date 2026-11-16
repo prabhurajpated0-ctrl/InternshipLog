@@ -1,227 +1,218 @@
-import React, { useState } from 'react';
-import { useApplications } from '../hooks/useApplications';
-import StatsBanner from '../components/StatsBanner';
-import UpcomingFollowUps from '../components/UpcomingFollowUps';
-import ApplicationCard from '../components/ApplicationCard';
-import ApplicationForm from '../components/ApplicationForm';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import applicationApi from '../api/applications';
+import toast from 'react-hot-toast';
+
+const STAGE_ORDER = ['Wishlist', 'Applied', 'OA/Screening', 'Interview', 'Offer', 'Rejected'];
 
 export default function Dashboard() {
-  const {
-    applications,
-    stats,
-    upcomingFollowUps,
-    loading,
-    error,
-    stageFilter,
-    setStageFilter,
-    searchQuery,
-    setSearchQuery,
-    addApplication,
-    updateApplication,
-    deleteApplication,
-  } = useApplications();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [followUps, setFollowUps] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [showForm, setShowForm] = useState(false);
-  const [editingApp, setEditingApp] = useState(null);
-
-  const handleCreate = async (data) => {
-    await addApplication(data);
-    setShowForm(false);
-  };
-
-  const handleUpdate = async (data) => {
-    if (editingApp) {
-      await updateApplication(editingApp._id, data);
-      setEditingApp(null);
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [statsRes, followUpsRes] = await Promise.all([
+        applicationApi.getStatsSummary(),
+        applicationApi.getUpcomingFollowUps(7),
+      ]);
+      setStats(statsRes?.data || null);
+      setFollowUps(followUpsRes?.data || []);
+    } catch (err) {
+      toast.error(err.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this application?')) {
-      await deleteApplication(id);
-    }
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '—';
+    return new Date(dateString).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
+
+  if (loading) {
+    return (
+      <div className="container" style={{ textAlign: 'center', padding: '60px 0' }}>
+        <p style={{ color: 'var(--text-secondary)' }}>Loading dashboard metrics...</p>
+      </div>
+    );
+  }
+
+  const overdueFollowUps = followUps.filter((f) => f.overdue || f.isOverdue);
+  const upcomingFollowUps = followUps.filter((f) => !f.overdue && !f.isOverdue);
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 20px' }}>
+    <div className="container">
       {/* Header */}
-      <header style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '28px',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#f8fafc' }}>
-            🎓 InternshipLog
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '14px', marginTop: '4px' }}>
-            Track and manage your internship & job applications
-          </p>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">Personal internship pipeline overview & priority reminders</p>
         </div>
-
-        <button
-          onClick={() => {
-            setEditingApp(null);
-            setShowForm((prev) => !prev);
-          }}
-          style={{
-            background: '#3b82f6',
-            color: '#fff',
-            border: 'none',
-            padding: '10px 18px',
-            borderRadius: '6px',
-            fontWeight: '600',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          {showForm ? 'Close Form' : '+ Add Application'}
-        </button>
-      </header>
-
-      {/* Summary Stats */}
-      <StatsBanner
-        stats={stats}
-        activeStage={stageFilter}
-        onSelectStage={setStageFilter}
-      />
-
-      {/* Upcoming follow-ups */}
-      <UpcomingFollowUps
-        followUps={upcomingFollowUps}
-        onSelectApplication={(app) => {
-          setEditingApp(app);
-          setShowForm(false);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
-
-      {/* Add / Edit Form */}
-      {(showForm || editingApp) && (
-        <ApplicationForm
-          initialData={editingApp}
-          onSubmit={editingApp ? handleUpdate : handleCreate}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingApp(null);
-          }}
-        />
-      )}
-
-      {/* Search and Filters */}
-      <div style={{
-        display: 'flex',
-        gap: '12px',
-        marginBottom: '20px',
-        flexWrap: 'wrap',
-      }}>
-        <input
-          type="text"
-          placeholder="Search company, role, location, notes..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{
-            flex: '1',
-            minWidth: '220px',
-            padding: '10px 14px',
-            borderRadius: '6px',
-            border: '1px solid #334155',
-            background: '#1e293b',
-            color: '#f8fafc',
-          }}
-        />
-
-        {stageFilter && (
-          <button
-            onClick={() => setStageFilter('')}
-            style={{
-              background: '#334155',
-              border: 'none',
-              padding: '10px 14px',
-              borderRadius: '6px',
-              color: '#94a3b8',
-              fontSize: '13px',
-            }}
-          >
-            Clear Filter: <strong>{stageFilter}</strong> ✕
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <Link to="/applications" className="btn-secondary">
+            View All Applications
+          </Link>
+          <Link to="/applications/new" className="btn-primary">
+            + New Application
+          </Link>
+        </div>
       </div>
 
-      {/* Error message */}
-      {error && (
-        <div style={{
-          background: '#450a0a',
-          color: '#f87171',
-          padding: '14px',
-          borderRadius: '8px',
-          marginBottom: '20px'
-        }}>
-          {error}
-        </div>
-      )}
-
-      {/* Loading state */}
-      {loading && !applications.length && (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-          Loading applications...
-        </div>
-      )}
-
-      {/* Applications list */}
-      {!loading && applications.length === 0 ? (
-        <div style={{
-          textAlign: 'center',
-          padding: '60px 20px',
-          background: '#1e293b',
-          borderRadius: '8px',
-          border: '1px dashed #334155',
-        }}>
-          <h3 style={{ color: '#cbd5e1', fontSize: '18px', marginBottom: '8px' }}>
-            No applications found
-          </h3>
-          <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '16px' }}>
-            {stageFilter || searchQuery ? 'Try clearing your filters or search.' : 'Get started by tracking your first application!'}
-          </p>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              background: '#3b82f6',
-              color: '#fff',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              fontWeight: '600',
-            }}
+      {/* Summary Metrics Grid */}
+      <section style={{ marginBottom: '28px' }}>
+        <div className="stats-grid">
+          {/* Total card */}
+          <div
+            className="stat-card"
+            onClick={() => navigate('/applications')}
+            title="Click to view all applications"
           >
-            + Add First Application
-          </button>
+            <span className="stat-label">Total</span>
+            <span className="stat-value">{stats?.total || 0}</span>
+          </div>
+
+          {/* Per Stage cards */}
+          {STAGE_ORDER.map((stage) => {
+            const count = stats?.byStage?.[stage] || 0;
+            const badgeClass = stage.replace(/[^a-zA-Z]/g, '');
+            return (
+              <div
+                key={stage}
+                className="stat-card"
+                onClick={() => navigate(`/applications?stage=${encodeURIComponent(stage)}`)}
+                title={`Filter by ${stage}`}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="stat-label">{stage}</span>
+                  <span className={`stage-badge ${badgeClass}`} style={{ fontSize: '10px', padding: '1px 5px' }}>
+                    ●
+                  </span>
+                </div>
+                <span className="stat-value">{count}</span>
+              </div>
+            );
+          })}
         </div>
-      ) : (
+      </section>
+
+      {/* Deadlines Banner (if any) */}
+      {stats?.upcomingDeadlinesCount > 0 && (
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: '16px',
+          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+          border: '1px solid var(--warning)',
+          borderRadius: 'var(--radius-md)',
+          padding: '12px 18px',
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
         }}>
-          {applications.map((app) => (
-            <ApplicationCard
-              key={app._id}
-              application={app}
-              onEdit={(appToEdit) => {
-                setEditingApp(appToEdit);
-                setShowForm(false);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              onDelete={handleDelete}
-            />
-          ))}
+          <span style={{ fontSize: '20px' }}>⏰</span>
+          <div>
+            <strong style={{ color: '#fbbf24' }}>
+              {stats.upcomingDeadlinesCount} application deadline(s) upcoming in the next 7 days!
+            </strong>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+              Check your pending applications and make sure submissions are finalized on time.
+            </p>
+          </div>
         </div>
       )}
+
+      {/* Overdue Follow-ups Section */}
+      {overdueFollowUps.length > 0 && (
+        <section className="banner-card" style={{ borderLeft: '4px solid var(--danger)', marginBottom: '24px' }}>
+          <div className="banner-title" style={{ color: '#f87171' }}>
+            <span>⚠️</span>
+            <span>Overdue Follow-ups ({overdueFollowUps.length})</span>
+          </div>
+          <div className="banner-grid">
+            {overdueFollowUps.map((app) => (
+              <div key={app._id} className="reminder-item overdue">
+                <div className="reminder-header">
+                  <div>
+                    <div className="reminder-company">{app.company}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{app.role}</div>
+                  </div>
+                  <span className="reminder-tag overdue">Overdue</span>
+                </div>
+                {app.followUpNote && (
+                  <div className="reminder-note">"{app.followUpNote}"</div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: '600' }}>
+                    Due: {formatDate(app.followUpDate)}
+                  </span>
+                  <Link
+                    to={`/applications/${app._id}/edit`}
+                    className="btn-icon"
+                    style={{ fontSize: '11px', padding: '4px 8px' }}
+                  >
+                    Update →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Upcoming Follow-ups (Next 7 days) */}
+      <section className="banner-card">
+        <div className="banner-title">
+          <span>🔔</span>
+          <span>Upcoming Follow-ups (Next 7 Days)</span>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+            ({upcomingFollowUps.length})
+          </span>
+        </div>
+
+        {upcomingFollowUps.length === 0 ? (
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', padding: '10px 0' }}>
+            No upcoming follow-ups scheduled for the next 7 days.
+          </p>
+        ) : (
+          <div className="banner-grid">
+            {upcomingFollowUps.map((app) => (
+              <div key={app._id} className="reminder-item upcoming">
+                <div className="reminder-header">
+                  <div>
+                    <div className="reminder-company">{app.company}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{app.role}</div>
+                  </div>
+                  <span className="reminder-tag upcoming">Upcoming</span>
+                </div>
+                {app.followUpNote && (
+                  <div className="reminder-note">"{app.followUpNote}"</div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                  <span style={{ fontSize: '11px', color: '#fbbf24', fontWeight: '600' }}>
+                    Follow-up: {formatDate(app.followUpDate)}
+                  </span>
+                  <Link
+                    to={`/applications/${app._id}/edit`}
+                    className="btn-icon"
+                    style={{ fontSize: '11px', padding: '4px 8px' }}
+                  >
+                    View / Edit →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
