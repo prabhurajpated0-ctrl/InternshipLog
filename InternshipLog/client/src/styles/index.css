@@ -689,3 +689,176 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-secondary);
   margin-bottom: 16px;
 }
+
+/* ==========================================================================
+   Skeleton Shimmer Loaders
+   ========================================================================== */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #182337 25%, #243247 50%, #182337 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeleton-card {
+  height: 90px;
+}
+
+/* ==========================================================================
+   Stage Distribution Bar Chart (Plain CSS / SVG)
+   ========================================================================== */
+.chart-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chart-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.chart-stacked-bar {
+  display: flex;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background-color: var(--bg-surface);
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color);
+}
+
+.chart-stacked-segment {
+  height: 100%;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.chart-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 60px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.chart-stage-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.chart-track {
+  background-color: var(--bg-input);
+  border-radius: var(--radius-full);
+  height: 10px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.chart-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+}
+
+.chart-values {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   Buttons & Error State
+   ========================================================================== */
+.btn-mark-done {
+  background-color: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-mark-done:hover {
+  background-color: rgba(16, 185, 129, 0.25);
+  border-color: var(--success);
+  color: #a7f3d0;
+}
+
+.error-card {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  text-align: center;
+  margin: 32px 0;
+}
+
+.error-title {
+  color: #f87171;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.error-desc {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.btn-retry {
+  background-color: var(--danger);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.btn-retry:hover {
+  background-color: #dc2626;
+}
