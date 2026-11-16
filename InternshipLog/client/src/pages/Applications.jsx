@@ -5,6 +5,15 @@ import toast from 'react-hot-toast';
 
 const STAGES = ['Wishlist', 'Applied', 'OA/Screening', 'Interview', 'Offer', 'Rejected'];
 
+const STAGE_COLORS = {
+  Wishlist: '#94a3b8',
+  Applied: '#3b82f6',
+  'OA/Screening': '#a855f7',
+  Interview: '#f59e0b',
+  Offer: '#10b981',
+  Rejected: '#ef4444',
+};
+
 export default function Applications() {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentStageParam = searchParams.get('stage') || '';
@@ -16,9 +25,13 @@ export default function Applications() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // View mode: 'table' or 'kanban'
+  const [viewMode, setViewMode] = useState('table');
+
   // Delete confirmation modal state
   const [deleteModalApp, setDeleteModalApp] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const cancelBtnRef = useRef(null);
 
   // Debounce search input (350ms)
   useEffect(() => {
@@ -33,12 +46,31 @@ export default function Applications() {
     setSelectedStage(currentStageParam);
   }, [currentStageParam]);
 
+  // Keyboard accessibility for delete modal (Escape key)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && deleteModalApp && !deleting) {
+        setDeleteModalApp(null);
+      }
+    };
+    if (deleteModalApp) {
+      window.addEventListener('keydown', handleKeyDown);
+      setTimeout(() => cancelBtnRef.current?.focus(), 50);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [deleteModalApp, deleting]);
+
   const loadApplications = useCallback(async () => {
     try {
       setLoading(true);
       const params = {};
-      if (selectedStage) params.stage = selectedStage;
-      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      // In Kanban view, fetch all stages so all columns are populated, but keep search
+      if (viewMode === 'table' && selectedStage) {
+        params.stage = selectedStage;
+      }
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+      }
 
       const [appsRes, statsRes] = await Promise.all([
         applicationApi.getAll(params),
@@ -57,7 +89,7 @@ export default function Applications() {
     } finally {
       setLoading(false);
     }
-  }, [selectedStage, debouncedSearch]);
+  }, [selectedStage, debouncedSearch, viewMode]);
 
   useEffect(() => {
     loadApplications();
@@ -83,7 +115,7 @@ export default function Applications() {
         prev.map((app) => (app._id === appId ? { ...app, stage: newStage } : app))
       );
 
-      // Refresh stats in background
+      // Refresh stats
       applicationApi.getStatsSummary().then((res) => {
         if (res?.data?.byStage) {
           setStageCounts({
@@ -94,6 +126,15 @@ export default function Applications() {
       });
     } catch (err) {
       toast.error(err.message || 'Failed to update stage');
+    }
+  };
+
+  // Move stage forward or backward (for Kanban view)
+  const handleMoveStage = (app, direction) => {
+    const currentIndex = STAGES.indexOf(app.stage);
+    const newIndex = currentIndex + direction;
+    if (newIndex >= 0 && newIndex < STAGES.length) {
+      handleQuickStageChange(app._id, STAGES[newIndex], app.company);
     }
   };
 
@@ -139,37 +180,68 @@ export default function Applications() {
           <h1 className="page-title">Applications</h1>
           <p className="page-subtitle">Manage submissions, update interview stages, and track progress</p>
         </div>
-        <Link to="/applications/new" className="btn-primary">
-          + Add Application
-        </Link>
-      </div>
 
-      {/* Stage Filter Tabs */}
-      <div className="stage-tabs-container">
-        <button
-          className={`stage-tab ${selectedStage === '' ? 'active' : ''}`}
-          onClick={() => handleStageTabClick('')}
-        >
-          All Applications
-          {stageCounts.total !== undefined && (
-            <span className="tab-count">{stageCounts.total}</span>
-          )}
-        </button>
-
-        {STAGES.map((stg) => {
-          const count = stageCounts[stg];
-          return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {/* View Toggle */}
+          <div className="view-toggle-bar" role="group" aria-label="View layout switch">
             <button
-              key={stg}
-              className={`stage-tab ${selectedStage === stg ? 'active' : ''}`}
-              onClick={() => handleStageTabClick(stg)}
+              className={`view-toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+              aria-pressed={viewMode === 'table'}
+              aria-label="Table or card view"
             >
-              <span>{stg}</span>
-              {count !== undefined && <span className="tab-count">{count}</span>}
+              <span>📋</span>
+              <span>Table</span>
             </button>
-          );
-        })}
+            <button
+              className={`view-toggle-btn ${viewMode === 'kanban' ? 'active' : ''}`}
+              onClick={() => setViewMode('kanban')}
+              aria-pressed={viewMode === 'kanban'}
+              aria-label="Kanban board view"
+            >
+              <span>📊</span>
+              <span>Kanban</span>
+            </button>
+          </div>
+
+          <Link to="/applications/new" className="btn-primary" aria-label="Add new application">
+            + Add Application
+          </Link>
+        </div>
       </div>
+
+      {/* Stage Filter Tabs (Visible in Table view) */}
+      {viewMode === 'table' && (
+        <div className="stage-tabs-container" role="tablist" aria-label="Stage filters">
+          <button
+            role="tab"
+            aria-selected={selectedStage === ''}
+            className={`stage-tab ${selectedStage === '' ? 'active' : ''}`}
+            onClick={() => handleStageTabClick('')}
+          >
+            All Applications
+            {stageCounts.total !== undefined && (
+              <span className="tab-count">{stageCounts.total}</span>
+            )}
+          </button>
+
+          {STAGES.map((stg) => {
+            const count = stageCounts[stg];
+            return (
+              <button
+                key={stg}
+                role="tab"
+                aria-selected={selectedStage === stg}
+                className={`stage-tab ${selectedStage === stg ? 'active' : ''}`}
+                onClick={() => handleStageTabClick(stg)}
+              >
+                <span>{stg}</span>
+                {count !== undefined && <span className="tab-count">{count}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Search and Filter Controls */}
       <div className="controls-bar">
@@ -179,6 +251,7 @@ export default function Applications() {
           placeholder="Search company, role, location, notes (debounced)..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          aria-label="Search applications by company, role, location, or notes"
         />
 
         {searchTerm && (
@@ -186,6 +259,7 @@ export default function Applications() {
             className="btn-icon"
             onClick={() => setSearchTerm('')}
             title="Clear search"
+            aria-label="Clear search input"
           >
             Clear Search ✕
           </button>
@@ -209,22 +283,136 @@ export default function Applications() {
             + Add New Application
           </Link>
         </div>
+      ) : viewMode === 'kanban' ? (
+        /* =============================================================
+            KANBAN BOARD VIEW
+            ============================================================= */
+        <div className="kanban-board" role="region" aria-label="Kanban board">
+          {STAGES.map((stg, stgIndex) => {
+            const stageApps = applications.filter((a) => a.stage === stg);
+            const color = STAGE_COLORS[stg] || '#94a3b8';
+
+            return (
+              <div key={stg} className="kanban-column">
+                <div className="kanban-column-header">
+                  <div className="kanban-column-title">
+                    <span
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: color,
+                        display: 'inline-block',
+                      }}
+                    />
+                    <span>{stg}</span>
+                  </div>
+                  <span className="kanban-count-badge">{stageApps.length}</span>
+                </div>
+
+                <div className="kanban-cards-list">
+                  {stageApps.length === 0 ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '24px 8px',
+                      color: 'var(--text-muted)',
+                      fontSize: '12px',
+                    }}>
+                      No applications
+                    </div>
+                  ) : (
+                    stageApps.map((app) => (
+                      <div key={app._id} className="kanban-card">
+                        <div>
+                          <div className="kanban-card-title">{app.company}</div>
+                          <div className="kanban-card-role">{app.role}</div>
+                        </div>
+
+                        {app.location && (
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            📍 {app.location}
+                          </div>
+                        )}
+
+                        {app.deadline && (
+                          <div style={{ fontSize: '11px', color: '#fbbf24' }}>
+                            ⏰ Deadline: {formatDate(app.deadline)}
+                          </div>
+                        )}
+
+                        {app.followUpDate && (
+                          <div style={{ fontSize: '11px', color: '#818cf8' }}>
+                            🔔 Follow-up: {formatDate(app.followUpDate)}
+                          </div>
+                        )}
+
+                        <div className="kanban-card-footer">
+                          {/* Stage shift arrows */}
+                          <div className="kanban-move-group">
+                            <button
+                              className="kanban-btn-arrow"
+                              disabled={stgIndex === 0}
+                              onClick={() => handleMoveStage(app, -1)}
+                              title={`Move back to ${STAGES[stgIndex - 1]}`}
+                              aria-label={`Move ${app.company} to ${STAGES[stgIndex - 1]}`}
+                            >
+                              ←
+                            </button>
+                            <button
+                              className="kanban-btn-arrow"
+                              disabled={stgIndex === STAGES.length - 1}
+                              onClick={() => handleMoveStage(app, 1)}
+                              title={`Advance to ${STAGES[stgIndex + 1]}`}
+                              aria-label={`Advance ${app.company} to ${STAGES[stgIndex + 1]}`}
+                            >
+                              →
+                            </button>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <Link
+                              to={`/applications/${app._id}/edit`}
+                              className="btn-icon"
+                              style={{ padding: '3px 8px', fontSize: '11px' }}
+                              aria-label={`Edit ${app.company}`}
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={() => setDeleteModalApp(app)}
+                              className="btn-icon danger"
+                              style={{ padding: '3px 8px', fontSize: '11px' }}
+                              aria-label={`Delete ${app.company}`}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : (
+        /* =============================================================
+            TABLE / CARDS VIEW
+            ============================================================= */
         <>
-          {/* =============================================================
-              1. Desktop View: Responsive Table
-              ============================================================= */}
+          {/* Desktop Table View */}
           <div className="table-wrapper">
             <table className="applications-table">
               <thead>
                 <tr>
-                  <th>Company & Role</th>
-                  <th>Stage</th>
-                  <th>Applied Date</th>
-                  <th>Deadline</th>
-                  <th>Follow-up</th>
-                  <th>Job Post</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th scope="col">Company & Role</th>
+                  <th scope="col">Stage</th>
+                  <th scope="col">Applied Date</th>
+                  <th scope="col">Deadline</th>
+                  <th scope="col">Follow-up</th>
+                  <th scope="col">Job Post</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -252,7 +440,8 @@ export default function Applications() {
                             className="stage-select"
                             value={app.stage}
                             onChange={(e) => handleQuickStageChange(app._id, e.target.value, app.company)}
-                            title="Quick change stage"
+                            title={`Change stage for ${app.company}`}
+                            aria-label={`Change stage for ${app.company}`}
                           >
                             {STAGES.map((s) => (
                               <option key={s} value={s}>{s}</option>
@@ -301,6 +490,7 @@ export default function Applications() {
                             target="_blank"
                             rel="noreferrer"
                             style={{ fontSize: '12px' }}
+                            aria-label={`View job posting for ${app.company}`}
                           >
                             View Post ↗
                           </a>
@@ -309,15 +499,20 @@ export default function Applications() {
                         )}
                       </td>
 
-                      {/* Action buttons */}
+                      {/* Actions */}
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: '8px' }}>
-                          <Link to={`/applications/${app._id}/edit`} className="btn-icon">
+                          <Link
+                            to={`/applications/${app._id}/edit`}
+                            className="btn-icon"
+                            aria-label={`Edit ${app.company}`}
+                          >
                             Edit
                           </Link>
                           <button
                             onClick={() => setDeleteModalApp(app)}
                             className="btn-icon danger"
+                            aria-label={`Delete ${app.company}`}
                           >
                             Delete
                           </button>
@@ -330,9 +525,7 @@ export default function Applications() {
             </table>
           </div>
 
-          {/* =============================================================
-              2. Mobile View: Responsive Cards
-              ============================================================= */}
+          {/* Mobile Cards View */}
           <div className="mobile-cards-view">
             {applications.map((app) => {
               const badgeClass = app.stage ? app.stage.replace(/[^a-zA-Z]/g, '') : 'Applied';
@@ -354,6 +547,7 @@ export default function Applications() {
                         className="stage-select"
                         value={app.stage}
                         onChange={(e) => handleQuickStageChange(app._id, e.target.value, app.company)}
+                        aria-label={`Change stage for ${app.company}`}
                       >
                         {STAGES.map((s) => (
                           <option key={s} value={s}>{s}</option>
@@ -407,6 +601,7 @@ export default function Applications() {
                           target="_blank"
                           rel="noreferrer"
                           style={{ fontSize: '12px' }}
+                          aria-label={`View job posting for ${app.company}`}
                         >
                           🔗 Job Post ↗
                         </a>
@@ -416,12 +611,17 @@ export default function Applications() {
                     </div>
 
                     <div className="action-buttons">
-                      <Link to={`/applications/${app._id}/edit`} className="btn-icon">
+                      <Link
+                        to={`/applications/${app._id}/edit`}
+                        className="btn-icon"
+                        aria-label={`Edit ${app.company}`}
+                      >
                         Edit
                       </Link>
                       <button
                         onClick={() => setDeleteModalApp(app)}
                         className="btn-icon danger"
+                        aria-label={`Delete ${app.company}`}
                       >
                         Delete
                       </button>
@@ -435,21 +635,29 @@ export default function Applications() {
       )}
 
       {/* =============================================================
-          3. Delete Confirmation Modal
+          Delete Confirmation Modal (Accessible & Keyboard-Friendly)
           ============================================================= */}
       {deleteModalApp && (
-        <div className="modal-backdrop" onClick={() => !deleting && setDeleteModalApp(null)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => !deleting && setDeleteModalApp(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-desc"
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Delete Application?</h3>
-            <p className="modal-body">
+            <h3 id="delete-dialog-title" className="modal-title">Delete Application?</h3>
+            <p id="delete-dialog-desc" className="modal-body">
               Are you sure you want to delete your application for{' '}
               <strong style={{ color: 'var(--text-primary)' }}>
                 {deleteModalApp.company} ({deleteModalApp.role})
               </strong>?{' '}
-              This action cannot be undone.
+              This action cannot be undone. Press <kbd style={{ background: '#243247', padding: '2px 6px', borderRadius: '4px' }}>Esc</kbd> to cancel.
             </p>
             <div className="modal-actions">
               <button
+                ref={cancelBtnRef}
                 className="btn-secondary"
                 disabled={deleting}
                 onClick={() => setDeleteModalApp(null)}
