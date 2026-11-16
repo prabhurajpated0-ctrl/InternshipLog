@@ -97,4 +97,14 @@ export const applicationApi = {
   },
 };
 
+export const {
+  getAll: getApplications,
+  getById: getApplicationById,
+  create: createApplication,
+  update: updateApplication,
+  delete: deleteApplication,
+  getUpcomingFollowUps,
+  getStatsSummary,
+} = applicationApi;
+
 export default applicationApi;
