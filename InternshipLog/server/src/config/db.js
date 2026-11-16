@@ -4,7 +4,12 @@ let memoryServer = null;
 
 const connectDB = async (overrideUri) => {
   const uri = overrideUri || process.env.MONGO_URI;
-  const isPlaceholder = !uri || uri.includes('<user>') || uri.includes('<pass>');
+  const isPlaceholder =
+    !uri ||
+    uri.includes('<user>') ||
+    uri.includes('<pass>') ||
+    uri.includes('<username>') ||
+    uri.includes('<password>');
 
   // 1. If real URI provided, attempt connecting to it first
   if (!isPlaceholder) {

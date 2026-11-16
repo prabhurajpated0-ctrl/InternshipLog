@@ -51,7 +51,9 @@ const getApplications = async (req, res, next) => {
     }
 
     if (search && search.trim()) {
-      const regex = new RegExp(search.trim(), 'i');
+      // Escape special characters to prevent regex injection or syntax errors (e.g. C++, (SWE), [intern])
+      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escapedSearch, 'i');
       filter.$or = [
         { company: regex },
         { role: regex },
