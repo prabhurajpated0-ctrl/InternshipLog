@@ -143,68 +143,113 @@ const deleteApplication = async (req, res, next) => {
   }
 };
 
-// @desc    Get upcoming follow-ups
+// @desc    Get upcoming follow-ups (next ?days=, default 7, plus overdue flagged)
 // @route   GET /api/applications/followups/upcoming
 const getUpcomingFollowUps = async (req, res, next) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const days = parseInt(req.query.days, 10) || 7;
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const windowEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, 23, 59, 59, 999);
 
-    const upcoming = await Application.find({
-      followUpDate: { $gte: today },
-      stage: { $nin: ['Rejected', 'Offer'] },
+    // Fetch follow-ups on or before windowEnd (which includes overdue ones), excluding Offer & Rejected
+    const applications = await Application.find({
+      followUpDate: { $ne: null, $lte: windowEnd },
+      stage: { $nin: ['Offer', 'Rejected'] },
     }).sort({ followUpDate: 1 });
+
+    const formattedApplications = applications.map((app) => {
+      const appObj = app.toObject ? app.toObject() : { ...app };
+      const isOverdue = new Date(appObj.followUpDate) < startOfToday;
+      return {
+        ...appObj,
+        isOverdue,
+        overdue: isOverdue,
+      };
+    });
 
     res.status(200).json({
       success: true,
-      count: upcoming.length,
-      data: upcoming,
+      count: formattedApplications.length,
+      daysWindow: days,
+      data: formattedApplications,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Get summary statistics
+// @desc    Get summary statistics using MongoDB aggregation
 // @route   GET /api/applications/stats/summary
 const getStatsSummary = async (req, res, next) => {
   try {
-    const total = await Application.countDocuments();
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const next7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 23, 59, 59, 999);
 
-    // Aggregation for stages
-    const stageCountsAgg = await Application.aggregate([
+    const [aggregationResult] = await Application.aggregate([
       {
-        $group: {
-          _id: '$stage',
-          count: { $sum: 1 },
+        $facet: {
+          totalCount: [
+            { $count: 'total' },
+          ],
+          byStage: [
+            {
+              $group: {
+                _id: '$stage',
+                count: { $sum: 1 },
+              },
+            },
+          ],
+          upcomingDeadlines: [
+            {
+              $match: {
+                deadline: { $gte: startOfToday, $lte: next7Days },
+                stage: { $nin: ['Offer', 'Rejected'] },
+              },
+            },
+            { $count: 'count' },
+          ],
+          upcomingFollowUps: [
+            {
+              $match: {
+                followUpDate: { $ne: null, $lte: next7Days },
+                stage: { $nin: ['Offer', 'Rejected'] },
+              },
+            },
+            { $count: 'count' },
+          ],
         },
       },
     ]);
 
-    // Build map for all defined stages so count is 0 if none exist
+    // Format total count
+    const total = aggregationResult?.totalCount?.[0]?.total || 0;
+
+    // Build complete stage map with 0 default for unrepresented stages
     const byStage = {};
     STAGES.forEach((stg) => {
       byStage[stg] = 0;
     });
-    stageCountsAgg.forEach((item) => {
-      if (item._id) {
-        byStage[item._id] = item.count;
-      }
-    });
+    if (aggregationResult?.byStage) {
+      aggregationResult.byStage.forEach((item) => {
+        if (item._id) {
+          byStage[item._id] = item.count;
+        }
+      });
+    }
 
-    // Upcoming follow-up count
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const upcomingFollowUpsCount = await Application.countDocuments({
-      followUpDate: { $gte: today },
-      stage: { $nin: ['Rejected', 'Offer'] },
-    });
+    // Number of upcoming deadlines in next 7 days
+    const upcomingDeadlinesCount = aggregationResult?.upcomingDeadlines?.[0]?.count || 0;
+    const upcomingFollowUpsCount = aggregationResult?.upcomingFollowUps?.[0]?.count || 0;
 
     res.status(200).json({
       success: true,
       data: {
         total,
         byStage,
+        upcomingDeadlines: upcomingDeadlinesCount,
+        upcomingDeadlinesCount,
         upcomingFollowUpsCount,
       },
     });
