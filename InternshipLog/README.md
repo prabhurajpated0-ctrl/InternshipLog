@@ -166,3 +166,34 @@ node test/endpoints.test.js
 node test/e2eLifecycle.test.js
 ```
 All suites run automated assertions verifying HTTP status codes, payloads, error arrays, and database mutations.
+
+
+---
+
+## ☁️ Deployment Guide (Render + Vercel / Netlify)
+
+### 1. Backend Deployment on [Render](https://render.com)
+1. Create a new **Web Service** on Render and link your GitHub repository.
+2. Configure settings:
+   - **Root Directory**: `InternshipLog/server`
+   - **Environment**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+3. Add Environment Variables in the Render dashboard:
+   - `MONGO_URI`: `mongodb+srv://<username>:<password>@cluster0.mongodb.net/internshiplog?retryWrites=true&w=majority`
+   - `NODE_ENV`: `production`
+   - `CLIENT_URL`: `https://your-app.vercel.app` (your frontend domain to allow CORS)
+   - `PORT`: `5000`
+
+---
+
+### 2. Frontend Deployment on [Vercel](https://vercel.com) / [Netlify](https://netlify.com)
+1. Import your GitHub repository into Vercel or Netlify.
+2. Configure project settings:
+   - **Root Directory**: `InternshipLog/client`
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Add Environment Variable:
+   - `VITE_API_URL`: `https://your-render-backend.onrender.com`
+4. Deploy! All API calls from the frontend will route directly to your Render backend with proper CORS authorization.
