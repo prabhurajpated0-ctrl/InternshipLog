@@ -9,21 +9,25 @@ const {
   getUpcomingFollowUps,
   getStatsSummary,
 } = require('../controllers/applicationController');
-const { validateApplication } = require('../middleware/validate');
+const {
+  validateCreate,
+  validateUpdate,
+  validateObjectId,
+} = require('../middleware/validate');
 
 // Root collection routes
 router.route('/')
   .get(getApplications)
-  .post(validateApplication, createApplication);
+  .post(validateCreate, createApplication);
 
-// Specific named routes (defined before :id to prevent matching as id)
+// Specific named routes (defined before :id to prevent collision)
 router.get('/followups/upcoming', getUpcomingFollowUps);
 router.get('/stats/summary', getStatsSummary);
 
-// Single item routes
+// Single item routes with ObjectId validation
 router.route('/:id')
-  .get(getApplicationById)
-  .put(validateApplication, updateApplication)
-  .delete(deleteApplication);
+  .get(validateObjectId, getApplicationById)
+  .put(validateUpdate, updateApplication)
+  .delete(validateObjectId, deleteApplication);
 
 module.exports = router;
