@@ -23,6 +23,7 @@ router.route('/')
 // Specific named routes (defined before :id to prevent collision)
 router.get('/followups/upcoming', getUpcomingFollowUps);
 router.get('/stats/summary', getStatsSummary);
+router.get('/metrics', getStatsSummary); // alias: GET /api/applications/metrics
 
 // Single item routes with ObjectId validation
 router.route('/:id')
